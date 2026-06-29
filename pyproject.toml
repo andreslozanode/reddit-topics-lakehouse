@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reddit-topics-lakehouse"
+version = "0.1.0"
+description = "End-to-end Databricks lakehouse + ML platform over public Reddit topic datasets"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Andres" }]
+keywords = ["databricks", "pyspark", "delta", "mlflow", "lakehouse", "reddit"]
+
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Heavy runtime deps are pre-installed on Databricks Runtime ML clusters.
+# Pin here for local development and CI only.
+spark = [
+    "pyspark==3.5.1",
+    "delta-spark==3.2.0",
+]
+ingestion = [
+    "huggingface-hub>=0.23",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+]
+ml = [
+    "mlflow>=2.14",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "black>=24.0",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[project.scripts]
+reddit-setup = "reddit_lakehouse.pipelines.run_setup:main"
+reddit-bronze = "reddit_lakehouse.pipelines.run_bronze:main"
+reddit-silver = "reddit_lakehouse.pipelines.run_silver:main"
+reddit-gold = "reddit_lakehouse.pipelines.run_gold:main"
+reddit-train = "reddit_lakehouse.pipelines.run_ml_training:main"
+reddit-infer = "reddit_lakehouse.pipelines.run_batch_inference:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+reddit_lakehouse = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4"]
+ignore = ["B008", "E501"]
+
+[tool.black]
+line-length = 110
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = false
+disallow_untyped_defs = false

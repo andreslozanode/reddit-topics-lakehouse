@@ -1,0 +1,31 @@
+# Standard logging configuration for local / CI runs.
+# On Databricks, cluster log4j settings take precedence; this file shapes the
+# Python-side logger used by reddit_lakehouse.common.logging.
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "%(asctime)s | %(levelname)-7s | %(name)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: standard
+    stream: ext://sys.stdout
+
+loggers:
+  reddit_lakehouse:
+    level: INFO
+    handlers: [console]
+    propagate: false
+  py4j:
+    level: ERROR
+  pyspark:
+    level: WARN
+
+root:
+  level: WARNING
+  handlers: [console]

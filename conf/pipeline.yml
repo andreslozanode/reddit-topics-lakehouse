@@ -1,0 +1,82 @@
+# =============================================================================
+# Reddit Topics Lakehouse — pipeline configuration
+# -----------------------------------------------------------------------------
+# The same logical pipeline runs across dev / staging / prod. Only the catalog,
+# landing paths and SQL warehouse change per environment; schemas, source
+# datasets and ML hyper-parameters are shared via the `defaults` block.
+#
+# Resolution order (see config.load_config): defaults  <-  environments.<env>
+# Select an environment with the LAKEHOUSE_ENV variable (default: dev).
+# =============================================================================
+
+defaults:
+  bronze_schema: bronze
+  silver_schema: silver
+  gold_schema: gold
+  volume: raw
+
+  # Public Reddit datasets (SocialGrep family on Hugging Face, CC-BY 4.0).
+  # All share the same schema, so any themed dataset can be added here without
+  # touching code. `topic` is propagated through every table so several themes
+  # can coexist in the same lakehouse.
+  sources:
+    - topic: dataset
+      repo_id: SocialGrep/the-reddit-dataset-dataset
+      posts_glob: "*posts*.parquet"
+      comments_glob: "*comments*.parquet"
+    - topic: nft
+      repo_id: SocialGrep/the-reddit-nft-dataset
+      posts_glob: "*posts*.parquet"
+      comments_glob: "*comments*.parquet"
+    - topic: covid
+      repo_id: SocialGrep/the-reddit-covid-dataset
+      posts_glob: "*posts*.parquet"
+      comments_glob: "*comments*.parquet"
+
+  data_quality:
+    min_bronze_rows: 1
+    max_null_ratio: 0.02
+    min_score: -100000
+    max_score: 10000000
+    freshness_max_age_days: 3650
+
+  ml:
+    # Topic modeling (LDA)
+    topic_count: 12
+    topic_max_iterations: 30
+    vocab_size: 20000
+    min_token_length: 3
+    min_doc_freq: 5
+    # Engagement classifier
+    engagement_percentile: 0.90
+    cv_folds: 3
+    random_seed: 42
+    # Unity Catalog registered model short names
+    registered_topic_model: reddit_topic_lda
+    registered_sentiment_model: reddit_sentiment_clf
+    registered_engagement_model: reddit_engagement_clf
+
+environments:
+  dev:
+    catalog: reddit_dev
+    raw_landing_path: /Volumes/reddit_dev/bronze/raw/landing
+    sql_warehouse_id: ""
+    # Smaller, faster models for fast iteration on dev clusters.
+    ml:
+      topic_count: 6
+      topic_max_iterations: 15
+      vocab_size: 5000
+      cv_folds: 2
+
+  staging:
+    catalog: reddit_staging
+    raw_landing_path: /Volumes/reddit_staging/bronze/raw/landing
+    sql_warehouse_id: ""
+
+  prod:
+    catalog: reddit_prod
+    raw_landing_path: /Volumes/reddit_prod/bronze/raw/landing
+    sql_warehouse_id: ""
+    data_quality:
+      # Stricter freshness expectation in production.
+      freshness_max_age_days: 30

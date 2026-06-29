@@ -1,0 +1,88 @@
+# =============================================================================
+# Databricks Asset Bundle — Reddit Topics Lakehouse
+# -----------------------------------------------------------------------------
+# Builds the project wheel and deploys jobs across dev / staging / prod targets.
+# Deploy with:
+#   databricks bundle validate -t dev
+#   databricks bundle deploy   -t dev
+#   databricks bundle run reddit_lakehouse_batch -t dev
+#
+# Auth is taken from the Databricks CLI profile or DATABRICKS_HOST /
+# DATABRICKS_TOKEN environment variables (used by the CD pipeline).
+# =============================================================================
+bundle:
+  name: reddit-topics-lakehouse
+
+include:
+  - resources/jobs/*.job.yml
+
+# Build the Python wheel from this repo so the python_wheel_task can install it.
+artifacts:
+  default_wheel:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+variables:
+  databricks_host:
+    description: Workspace URL; from CLI profile locally or DATABRICKS_HOST in CI.
+    default: https://example.cloud.databricks.com
+  environment:
+    description: Logical pipeline environment passed to entrypoints via --env.
+    default: dev
+  catalog:
+    description: Unity Catalog name for this target.
+    default: reddit_dev
+  node_type_id:
+    description: Worker node type for job clusters.
+    default: i3.xlarge
+  spark_version:
+    description: Databricks Runtime (ML) version.
+    default: 15.4.x-cpu-ml-scala2.12
+  max_workers:
+    description: Autoscale upper bound for job clusters.
+    default: 4
+  schedule_pause_status:
+    description: Whether scheduled triggers fire (UNPAUSED on prod only).
+    default: PAUSED
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${var.databricks_host}
+    variables:
+      environment: dev
+      catalog: reddit_dev
+      max_workers: 2
+
+  staging:
+    mode: production
+    workspace:
+      host: ${var.databricks_host}
+      root_path: /Shared/.bundle/${bundle.name}/staging
+    variables:
+      environment: staging
+      catalog: reddit_staging
+      max_workers: 4
+
+  prod:
+    mode: production
+    workspace:
+      host: ${var.databricks_host}
+      root_path: /Shared/.bundle/${bundle.name}/prod
+    variables:
+      environment: prod
+      catalog: reddit_prod
+      node_type_id: i3.2xlarge
+      max_workers: 8
+      schedule_pause_status: UNPAUSED
+    permissions:
+      - level: CAN_VIEW
+        group_name: data-analysts
+      - level: CAN_MANAGE
+        group_name: data-engineers
+
+# databricks_host is supplied per-target by CLI profile / CI secret; declared
+# here so ${var.databricks_host} resolves during validate.

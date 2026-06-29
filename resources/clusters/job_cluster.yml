@@ -1,0 +1,24 @@
+# =============================================================================
+# Shared job-cluster specification.
+# -----------------------------------------------------------------------------
+# Imported by the job definitions via YAML so every task in a job reuses one
+# autoscaling cluster. Photon + AQE are enabled for the SQL-heavy gold stage;
+# the runtime is Databricks Runtime ML so MLflow / Spark ML are pre-installed.
+# =============================================================================
+job_cluster_spec: &job_cluster_spec
+  spark_version: ${var.spark_version}
+  node_type_id: ${var.node_type_id}
+  runtime_engine: PHOTON
+  autoscale:
+    min_workers: 1
+    max_workers: ${var.max_workers}
+  spark_conf:
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.coalescePartitions.enabled: "true"
+    spark.sql.adaptive.skewJoin.enabled: "true"
+    spark.databricks.delta.optimizeWrite.enabled: "true"
+    spark.databricks.delta.autoCompact.enabled: "true"
+  data_security_mode: SINGLE_USER
+  custom_tags:
+    project: reddit-topics-lakehouse
+    environment: ${var.environment}
